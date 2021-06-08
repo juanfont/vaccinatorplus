@@ -2,14 +2,14 @@ package vaccinatorplus
 
 import (
 	"embed"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"math/rand"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -83,30 +83,40 @@ func (v *Vaccinator) Run() error {
 	return nil
 }
 
+type CoronaResponse struct {
+	Success bool `json:"success"`
+}
+
 func (v *Vaccinator) yearChecker() {
 	for {
-		resp, err := http.Get("https://www.rijksoverheid.nl/onderwerpen/coronavirus-vaccinatie/prikuitnodiging-en-afspraak")
+		log.Printf("Checking for %d", v.currentYear+1)
+		resp, err := http.Get(
+			fmt.Sprintf("https://user-api.coronatest.nl/vaccinatie/programma/bepaalbaar/%d/NEE/NEE", v.currentYear+1))
 		if err != nil {
-			time.Sleep(10 * time.Second)
+			time.Sleep(60 * time.Second)
 			continue
 		}
-
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			time.Sleep(10 * time.Second)
+			time.Sleep(60 * time.Second)
 			continue
 		}
 
-		text := string(body)
-		nextYear := v.currentYear + 1
-		if strings.Contains(text, strconv.Itoa(nextYear)) {
-			log.Printf("Year %d has appeared!", nextYear)
-			v.notifyUsers(nextYear)
-			v.currentYear = nextYear
-			time.Sleep(5 * time.Minute)
+		result := CoronaResponse{}
+		err = json.Unmarshal(body, &result)
+		if err != nil {
+			time.Sleep(60 * time.Second)
+			continue
+		}
+
+		if result.Success {
+			log.Printf("Year %d has appeared!", v.currentYear+1)
+			v.notifyUsers(v.currentYear + 1)
+			v.currentYear = v.currentYear + 1
+			time.Sleep(1 * time.Minute)
 		} else {
 			log.Printf("Still in %d", v.currentYear)
-			time.Sleep(5 * time.Minute)
+			time.Sleep(3 * time.Minute)
 		}
 	}
 }
