@@ -93,11 +93,13 @@ func (v *Vaccinator) yearChecker() {
 		resp, err := http.Get(
 			fmt.Sprintf("https://user-api.coronatest.nl/vaccinatie/programma/bepaalbaar/%d/NEE/NEE", v.currentYear+1))
 		if err != nil {
+			log.Printf("Error making request")
 			time.Sleep(60 * time.Second)
 			continue
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
+			log.Printf("Error reading body")
 			time.Sleep(60 * time.Second)
 			continue
 		}
@@ -105,6 +107,7 @@ func (v *Vaccinator) yearChecker() {
 		result := CoronaResponse{}
 		err = json.Unmarshal(body, &result)
 		if err != nil {
+			log.Printf("Error parsing json")
 			time.Sleep(60 * time.Second)
 			continue
 		}
@@ -115,7 +118,7 @@ func (v *Vaccinator) yearChecker() {
 			v.currentYear = v.currentYear + 1
 			time.Sleep(1 * time.Minute)
 		} else {
-			log.Printf("Still in %d", v.currentYear)
+			log.Printf("Still in %d :(", v.currentYear)
 			time.Sleep(3 * time.Minute)
 		}
 	}
